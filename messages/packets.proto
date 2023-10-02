@@ -1,0 +1,127 @@
+syntax = "proto3";
+import "google/protobuf/descriptor.proto";
+
+option go_package = "./packets";
+
+extend google.protobuf.MessageOptions {
+    bool is_generic = 51234;
+}
+
+message ReliablePacket {
+    option (is_generic) = true;
+    oneof value {
+        RegisterPacket registerPacket = 1;
+        ClientInfoPacket clientInfoPacket = 2;
+        CreateLobbyRequestPacket createLobbyRequestPacket = 3;
+        CreateLobbyResponsePacket createLobbyResponsePacket = 4;
+        JoinLobbyPacket joinLobbyPacket = 5;
+        LobbyPlayerInfo lobbyPlayerInfo = 6;
+        LobbyInfoPacket lobbyInfoPacket = 7;
+        UpdateLobbyPacket updateLobbyPacket = 8;
+        AttemptDirectConnectPacket attemptDirectConnectPacket = 9;
+        ReportDirectConnectResultPacket reportDirectConnectResultPacket = 10;
+        AttemptRelayConnectPacket attemptRelayConnectPacket = 11;
+        ReportRelayConnectResultPacket reportRelayConnectResultPacket = 12;
+        KickLobbyMemberPacket kickLobbyMemberPacket = 13;
+        KickClientPacket kickClientPacket = 14;
+        ChangeNamePacket changeNamePacket = 15;
+        ChangeLobbyNamePacket changeLobbyNamePacket = 16;
+        ChatMessagePacket chatMessagePacket = 17;
+        LeaveLobbyPacket leaveLobbyPacket = 18;
+    }
+}
+
+// Sent from client to server to register a new user
+message RegisterPacket {
+    string username = 1;
+}
+
+// Sent from server to client to indicate that the registration was successful
+message ClientInfoPacket {
+    int32 clientId = 1;
+}
+
+// Sent from client to server to request to create a lobby
+message CreateLobbyRequestPacket {
+    string lobbyName = 1;
+}
+
+// Sent from server to client to indicate that the lobby was created successfully
+message CreateLobbyResponsePacket {
+    string lobbyCode = 1; // This will be a six character codee
+}
+
+
+// Sent from client to server to request to join a lobby
+message JoinLobbyPacket {
+    string lobbyCode = 1;
+}
+
+message LobbyPlayerInfo {
+    int32 playerId = 1;
+    string playerName = 2;
+}
+
+// Send from server to client to indicate that the client joined a lobby successfully
+message LobbyInfoPacket {
+    int32 lobbyId = 1;
+    string lobbyCode = 2;
+    string lobbyName = 3;
+    LobbyPlayerInfo playerOneInfo = 4;
+    LobbyPlayerInfo playerTwoInfo = 5;
+}
+
+// Send from server to client to indicate a change in lobby state
+message UpdateLobbyPacket {
+    LobbyPlayerInfo playerOneInfo = 1;
+    LobbyPlayerInfo playerTwoInfo = 2;
+}
+
+// Sent from server to lobby clients to inform them to attempt to connect directly
+message AttemptDirectConnectPacket {
+    string peerAddress = 1;
+}
+
+// Sent from client to server to indicate that the client connected directly to the peer
+message ReportDirectConnectResultPacket {
+    bool success = 1;
+}
+
+// Sent from server to lobby clients to inform them to attempt to connect via the relay server
+message AttemptRelayConnectPacket {
+    
+}
+
+// Sent from client to server to indicate that the client connected to the peer via the relay server
+message ReportRelayConnectResultPacket {
+    bool success = 1;
+}
+
+// Sent from client to server to kick a lobby member
+message KickLobbyMemberPacket {
+    int32 playerId = 1;
+}
+
+// Sent from server to client to indicate that the client was kicked from the lobby
+message KickClientPacket {
+}
+
+// Sent from client to server to change the client's name
+message ChangeNamePacket {
+    string newName = 1;
+}
+
+// Sent from client to server to change the lobby's name
+message ChangeLobbyNamePacket {
+    string newName = 1;
+}
+
+// Sent from client to server to send a chat message
+message ChatMessagePacket {
+    optional string senderName = 1;
+    string message = 2;
+}
+
+// Sent from client to server to leave the lobby
+message LeaveLobbyPacket {
+}
