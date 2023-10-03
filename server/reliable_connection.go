@@ -42,7 +42,7 @@ func (s *Server) handle_tcp_connection(conn *net.TCPConn) {
 		}
 
 		// Handle the packet
-		s.HandlePacket(container_packet)
+		s.HandleReliablePacket(container_packet)
 	}
 }
 

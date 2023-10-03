@@ -1,8 +1,6 @@
 //go:build ignore
 // +build ignore
 
-//go:generate go run packet_merger.go -proto messages/packets.proto
-
 package main
 
 import (
@@ -20,6 +18,7 @@ import (
 func main() {
 	protoFilePath := flag.String("proto", "messages/packets.proto", "Path to the .proto file")
 	containerName := flag.String("containerName", "ReliablePacket", "name of the container message")
+	flag.Parse()
 
 	file, err := os.Open(*protoFilePath)
 	if err != nil {

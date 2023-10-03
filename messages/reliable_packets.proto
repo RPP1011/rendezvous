@@ -1,11 +1,9 @@
 syntax = "proto3";
 import "google/protobuf/descriptor.proto";
 
-option go_package = "./packets";
+import "messages/shared.proto";
 
-extend google.protobuf.MessageOptions {
-    bool is_generic = 51234;
-}
+option go_package = "./packets";
 
 message ReliablePacket {
     option (is_generic) = true;
@@ -89,7 +87,7 @@ message ReportDirectConnectResultPacket {
 
 // Sent from server to lobby clients to inform them to attempt to connect via the relay server
 message AttemptRelayConnectPacket {
-    
+    string relayAddress = 1;
 }
 
 // Sent from client to server to indicate that the client connected to the peer via the relay server
@@ -118,7 +116,7 @@ message ChangeLobbyNamePacket {
 
 // Sent from client to server to send a chat message
 message ChatMessagePacket {
-    optional string senderName = 1;
+    string senderName = 1;
     string message = 2;
 }
 

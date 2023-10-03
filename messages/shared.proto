@@ -1,0 +1,13 @@
+syntax = "proto3";
+import "google/protobuf/descriptor.proto";
+
+option go_package = "./packets";
+
+
+extend google.protobuf.MessageOptions {
+    bool is_generic = 51234;
+}
+
+message EmptyMessage {
+    string id = 1;
+}

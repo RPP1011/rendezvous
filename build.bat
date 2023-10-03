@@ -3,11 +3,14 @@
 rem Clear build directory
 rmdir /s /q build
 
-rem Populate container type
-go generate packet_merger.go
+rem Populate container types
+go run packet_merger.go -proto messages/reliable_packets.proto -containerName ReliablePacket
+go run packet_merger.go -proto messages/unreliable_packets.proto -containerName UnreliablePacket
 
 rem Generate Go code from protobuf file
-protoc --go_out=. messages/packets.proto
+protoc --go_out=. messages/shared.proto
+protoc --go_out=. messages/reliable_packets.proto
+protoc --go_out=. messages/unreliable_packets.proto
 
 rem Run Go generate to generate code from templates
 go generate generate.go

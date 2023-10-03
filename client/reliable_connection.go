@@ -1,7 +1,10 @@
 package client
 
 import (
+	"net"
+
 	"github.com/RPP1011/rendezvous/packets"
+	"github.com/RPP1011/rendezvous/shared"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -33,74 +36,118 @@ func (c *Client) handle_tcp_connection(cancel <-chan struct{}) {
 			}
 
 			// Handle the packet
-			c.HandlePacket(container_packet)
+			c.HandleReliablePacket(container_packet)
 		}
 	}
 }
 
 // Implement packet handlers
 
-// Handle RegisterPacket
-func (c *Client) handleRegisterPacket(packet *packets.ReliablePacket_RegisterPacket) {
-	println("handleRegisterPacket invoked on Client")
-}
-
 // Handle ClientInfoPacket
-func (c *Client) handleClientInfoPacket(packet *packets.ReliablePacket_ClientInfoPacket) {
-	println("handleClientInfoPacket invoked on Client")
-}
-
-// Handle CreateLobbyRequestPacket
-func (c *Client) handleCreateLobbyRequestPacket(packet *packets.ReliablePacket_CreateLobbyRequestPacket) {
-	println("handleCreateLobbyRequestPacket invoked on Client")
+func (c *Client) handleClientInfoPacket(packet *packets.ClientInfoPacket) {
+	c.clientInfo.ID = uint32(packet.ClientId)
 }
 
 // Handle CreateLobbyResponsePacket
-func (c *Client) handleCreateLobbyResponsePacket(packet *packets.ReliablePacket_CreateLobbyResponsePacket) {
-	println("handleCreateLobbyResponsePacket invoked on Client")
-}
+func (c *Client) handleCreateLobbyResponsePacket(packet *packets.CreateLobbyResponsePacket) {
+	// Auto join
+	join_packet := &packets.JoinLobbyPacket{
+		LobbyCode: packet.LobbyCode,
+	}
 
-// Handle JoinLobbyPacket
-func (c *Client) handleJoinLobbyPacket(packet *packets.ReliablePacket_JoinLobbyPacket) {
-	println("handleJoinLobbyPacket invoked on Client")
+	data, err := proto.Marshal(join_packet)
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.tcpConn.Write(data)
 }
 
 // Handle LobbyInfoPacket
-func (c *Client) handleLobbyInfoPacket(packet *packets.ReliablePacket_LobbyInfoPacket) {
-	println("handleLobbyInfoPacket invoked on Client")
+func (c *Client) handleLobbyInfoPacket(packet *packets.LobbyInfoPacket) {
+	lobby := shared.NewLobbyInfo(uint32(packet.LobbyId), packet.LobbyCode)
+	lobby.AddPlayer(&c.clientInfo)
+	c.clientInfo.Lobby = lobby
 }
 
-// Handle UpdateLobbyPacket
-func (c *Client) handleUpdateLobbyPacket(packet *packets.ReliablePacket_UpdateLobbyPacket) {
-	println("handleUpdateLobbyPacket invoked on Client")
+func (c *Client) handleUpdateLobbyPacket(packet *packets.UpdateLobbyPacket) {
+	// Update the lobby
+	playerOneInfo := packet.PlayerOneInfo
+	playerTwoInfo := packet.PlayerTwoInfo
+
+	lobby := c.clientInfo.Lobby
+	if playerOneInfo != nil {
+		player := lobby.Players[0]
+		player.Name = playerOneInfo.PlayerName
+		player.ID = uint32(playerOneInfo.PlayerId)
+	}
+
+	if playerTwoInfo != nil {
+		player := lobby.Players[1]
+		player.Name = playerTwoInfo.PlayerName
+		player.ID = uint32(playerTwoInfo.PlayerId)
+	}
 }
 
-// Handle AttemptDirectConnectPacket
-func (c *Client) handleAttemptDirectConnectPacket(packet *packets.ReliablePacket_AttemptDirectConnectPacket) {
-	println("handleAttemptDirectConnectPacket invoked on Client")
+func (c *Client) handleAttemptDirectConnectPacket(packet *packets.AttemptDirectConnectPacket) {
+	c.attemptUDPConnection(packet.PeerAddress, func(success bool) ([]byte, error) {
+		data := packets.ReportDirectConnectResultPacket{
+			Success: success,
+		}
+		return proto.Marshal(&data)
+	})
 }
 
-// Handle ReportDirectConnectResultPacket
-func (c *Client) handleReportDirectConnectResultPacket(packet *packets.ReliablePacket_ReportDirectConnectResultPacket) {
-	println("handleReportDirectConnectResultPacket invoked on Client")
+func (c *Client) handleAttemptRelayConnectPacket(packet *packets.AttemptRelayConnectPacket) {
+	// Attempt to connect to the relay server
+	c.attemptUDPConnection(packet.RelayAddress, func(success bool) ([]byte, error) {
+		data := packets.ReportRelayConnectResultPacket{
+			Success: success,
+		}
+		return proto.Marshal(&data)
+	})
 }
 
-// Handle AttemptRelayConnectPacket
-func (c *Client) handleAttemptRelayConnectPacket(packet *packets.ReliablePacket_AttemptRelayConnectPacket) {
-	println("handleAttemptRelayConnectPacket invoked on Client")
+type serializer func(success bool) ([]byte, error)
+
+func (c *Client) attemptUDPConnection(remote_addr_str string, serialize serializer) {
+	remote_addr, addr_err := net.ResolveUDPAddr("udp", remote_addr_str)
+	if addr_err != nil {
+		println("Error resolving other client's address")
+		return
+	} // Create a new UDP connection
+	udpConn, err := net.DialUDP("udp", nil, remote_addr)
+
+	if err != nil {
+		println("Error connecting to other client directly")
+		return
+	}
+
+	c.udpConn = udpConn
+
+	// Send a ReportDirectConnectResultPacket to the server
+	data, err := serialize(true)
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.tcpConn.Write(data)
 }
 
-// Handle ReportRelayConnectResultPacket
-func (c *Client) handleReportRelayConnectResultPacket(packet *packets.ReliablePacket_ReportRelayConnectResultPacket) {
-	println("handleReportRelayConnectResultPacket invoked on Client")
+func (c *Client) handleKickClientPacket(packet *packets.KickClientPacket) {
+	// Kick the client
+	c.tcpConn.Close()
+	c.tcpConn = nil
+	if c.udpConn != nil {
+		c.udpConn.Close()
+		c.udpConn = nil
+	}
 }
 
-// Handle KickLobbyMemberPacket
-func (c *Client) handleKickLobbyMemberPacket(packet *packets.ReliablePacket_KickLobbyMemberPacket) {
-	println("handleKickLobbyMemberPacket invoked on Client")
-}
-
-// Handle KickClientPacket
-func (c *Client) handleKickClientPacket(packet *packets.ReliablePacket_KickClientPacket) {
-	println("handleKickClientPacket invoked on Client")
+func (c *Client) handleChatMessagePacket(packet *packets.ChatMessagePacket) {
+	if c.events.ReceiveChatMessageCallback != nil {
+		c.events.ReceiveChatMessageCallback(packet.SenderName, packet.Message)
+	}
 }

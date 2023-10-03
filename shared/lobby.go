@@ -65,3 +65,13 @@ func (l *LobbyInfo) IsFull() bool {
 func (l *LobbyInfo) IsEmpty() bool {
 	return len(l.Players) == 0
 }
+
+func (l *LobbyInfo) GetOtherPlayer(player *ClientInfo) *ClientInfo {
+	if l.Players[0] == player {
+		return l.Players[1]
+	} else if l.Players[1] == player {
+		return l.Players[0]
+	} else {
+		return nil
+	}
+}

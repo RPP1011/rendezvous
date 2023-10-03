@@ -7,26 +7,54 @@ import (
 
 type ReliablePacketHandler interface {
 	HandlePacket(packet *packets.ReliablePacket)
-	{{- range .OneofFields }}
-	handle{{ .Name }}(packet *packets.ReliablePacket_{{ .Name }})
+	{{- range .ReliableMessageNames }}
+	handle{{ .Name }}(packet *packets.{{ .Name }})
 	{{- end }}
 }
 
 type DefaultReliablePacketHandler struct {}
 
-func (p *DefaultReliablePacketHandler) HandlePacket(packet *packets.ReliablePacket) {
+func (p *DefaultReliablePacketHandler) HandleReliablePacket(packet *packets.ReliablePacket) {
 	switch packet.Value.(type) {
-	{{- range .OneofFields }}
+	{{- range .ReliableMessageNames }}
 	case *packets.ReliablePacket_{{ .Name }}:
-		p.handle{{ .Name }}(packet.Value.(*packets.ReliablePacket_{{ .Name }}))
+		p.handle{{ .Name }}(packet.Get{{ .Name }}())
 	{{- end }}
 	}
 }
 
-{{- range .OneofFields }}
+{{- range .ReliableMessageNames }}
 
-func (p *DefaultReliablePacketHandler) handle{{ .Name }}(packet *packets.ReliablePacket_{{ .Name }}) {
+func (p *DefaultReliablePacketHandler) handle{{ .Name }}(packet *packets.{{ .Name }}) {
 	println("Received {{ .Name }} packet on DefaultReliablePacketHandler")
+}
+
+{{- end }}
+
+
+
+type UnreliablePacketHandler interface {
+	HandlePacket(packet *packets.UnreliablePacket)
+	{{- range .UnreliableMessageNames }}
+	handle{{ .Name }}(packet *packets.{{ .Name }})
+	{{- end }}
+}
+
+type DefaultUnreliablePacketHandler struct {}
+
+func (p *DefaultUnreliablePacketHandler) HandleUnreliablePacket(packet *packets.UnreliablePacket) {
+	switch packet.Value.(type) {
+	{{- range .UnreliableMessageNames }}
+	case *packets.UnreliablePacket_{{ .Name }}:
+		p.handle{{ .Name }}(packet.Get{{ .Name }}())
+	{{- end }}
+	}
+}
+
+{{- range .UnreliableMessageNames }}
+
+func (p *DefaultUnreliablePacketHandler) handle{{ .Name }}(packet *packets.{{ .Name }}) {
+	println("Received {{ .Name }} packet on DefaultUnreliablePacketHandler")
 }
 
 {{- end }}

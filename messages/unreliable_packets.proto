@@ -1,0 +1,21 @@
+syntax = "proto3";
+import "google/protobuf/descriptor.proto";
+import "messages/shared.proto";
+
+option go_package = "./packets";
+
+message UnreliablePacket {
+    option (is_generic) = true;
+    oneof value {
+        PingPacket pingPacket = 1;
+        DataPacket dataPacket = 2;
+    }
+}
+ 
+message PingPacket {
+    int64 timestamp = 1;
+}
+
+message DataPacket {
+    int64 timestamp = 1;
+}

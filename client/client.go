@@ -10,7 +10,9 @@ import (
 
 type Client struct {
 	shared.DefaultReliablePacketHandler
+	shared.DefaultUnreliablePacketHandler
 	clientInfo    shared.ClientInfo
+	events        ClientEventHandler
 	tcpConn       *net.TCPConn
 	udpConn       *net.UDPConn
 	cancelChannel chan struct{}
@@ -23,6 +25,7 @@ func NewClient() *Client {
 			Name:  "DefaultName",
 			Lobby: nil,
 		},
+		events:        ClientEventHandler{},
 		tcpConn:       nil,
 		udpConn:       nil,
 		cancelChannel: make(chan struct{}),
@@ -109,4 +112,17 @@ func (c *Client) ChangeLobbyName(newLobbyName string) {
 
 func (c *Client) Disconnect() {
 	c.tcpConn.Close()
+}
+
+func (c *Client) SendChatMessage(message string) {
+	packet := &packets.ChatMessagePacket{
+		SenderName: c.clientInfo.Name,
+		Message:    message,
+	}
+
+	data, err := proto.Marshal(packet)
+	if err != nil {
+		panic(err)
+	}
+	c.tcpConn.Write(data)
 }
