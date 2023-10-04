@@ -11,11 +11,13 @@ import (
 type Client struct {
 	shared.DefaultReliablePacketHandler
 	shared.DefaultUnreliablePacketHandler
-	clientInfo    shared.ClientInfo
-	events        ClientEventHandler
-	tcpConn       *net.TCPConn
-	udpConn       *net.UDPConn
-	cancelChannel chan struct{}
+	clientInfo                    shared.ClientInfo
+	events                        ClientEventHandler
+	tcpConn                       *net.TCPConn
+	udpConn                       *net.UDPConn
+	timeDrift                     int64
+	serverConnectionCancelChannel chan struct{}
+	lobbyConnectionCancelChannel  chan struct{}
 }
 
 func NewClient() *Client {
@@ -25,10 +27,11 @@ func NewClient() *Client {
 			Name:  "DefaultName",
 			Lobby: nil,
 		},
-		events:        ClientEventHandler{},
-		tcpConn:       nil,
-		udpConn:       nil,
-		cancelChannel: make(chan struct{}),
+		events:                        ClientEventHandler{},
+		tcpConn:                       nil,
+		udpConn:                       nil,
+		serverConnectionCancelChannel: make(chan struct{}),
+		lobbyConnectionCancelChannel:  make(chan struct{}),
 	}
 }
 
@@ -57,7 +60,7 @@ func (c *Client) Connect(addr string) error {
 	}
 	c.tcpConn, err = net.DialTCP("tcp", nil, tcpAddr)
 
-	go c.handle_tcp_connection(c.cancelChannel)
+	go c.handle_tcp_connection(c.serverConnectionCancelChannel)
 
 	if err != nil {
 		return err

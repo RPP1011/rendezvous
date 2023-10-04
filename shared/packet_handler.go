@@ -26,7 +26,7 @@ type ReliablePacketHandler interface {
 	handleLeaveLobbyPacket(packet *packets.LeaveLobbyPacket)
 }
 
-type DefaultReliablePacketHandler struct{}
+type DefaultReliablePacketHandler struct {}
 
 func (p *DefaultReliablePacketHandler) HandleReliablePacket(packet *packets.ReliablePacket) {
 	switch packet.Value.(type) {
@@ -141,13 +141,15 @@ func (p *DefaultReliablePacketHandler) handleLeaveLobbyPacket(packet *packets.Le
 	println("Received LeaveLobbyPacket packet on DefaultReliablePacketHandler")
 }
 
+
+
 type UnreliablePacketHandler interface {
 	HandlePacket(packet *packets.UnreliablePacket)
 	handlePingPacket(packet *packets.PingPacket)
 	handleDataPacket(packet *packets.DataPacket)
 }
 
-type DefaultUnreliablePacketHandler struct{}
+type DefaultUnreliablePacketHandler struct {}
 
 func (p *DefaultUnreliablePacketHandler) HandleUnreliablePacket(packet *packets.UnreliablePacket) {
 	switch packet.Value.(type) {

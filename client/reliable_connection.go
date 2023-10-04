@@ -2,6 +2,7 @@ package client
 
 import (
 	"net"
+	"time"
 
 	"github.com/RPP1011/rendezvous/packets"
 	"github.com/RPP1011/rendezvous/shared"
@@ -69,6 +70,9 @@ func (c *Client) handleLobbyInfoPacket(packet *packets.LobbyInfoPacket) {
 	lobby := shared.NewLobbyInfo(uint32(packet.LobbyId), packet.LobbyCode)
 	lobby.AddPlayer(&c.clientInfo)
 	c.clientInfo.Lobby = lobby
+
+	go c.update_drift()
+	go c.handle_udp_connection()
 }
 
 func (c *Client) handleUpdateLobbyPacket(packet *packets.UpdateLobbyPacket) {
@@ -91,22 +95,51 @@ func (c *Client) handleUpdateLobbyPacket(packet *packets.UpdateLobbyPacket) {
 }
 
 func (c *Client) handleAttemptDirectConnectPacket(packet *packets.AttemptDirectConnectPacket) {
+	conn_success := false
 	c.attemptUDPConnection(packet.PeerAddress, func(success bool) ([]byte, error) {
+		conn_success = success
 		data := packets.ReportDirectConnectResultPacket{
 			Success: success,
 		}
 		return proto.Marshal(&data)
 	})
+
+	if conn_success {
+		// Send packet to other client
+		data := packets.PingPacket{
+			Timestamp: time.Now().UnixNano() + c.timeDrift,
+		}
+		packet_data, err := proto.Marshal(&data)
+		if err != nil {
+			panic(err)
+		}
+		c.udpConn.Write(packet_data)
+	}
 }
 
 func (c *Client) handleAttemptRelayConnectPacket(packet *packets.AttemptRelayConnectPacket) {
+	conn_success := false
+
 	// Attempt to connect to the relay server
 	c.attemptUDPConnection(packet.RelayAddress, func(success bool) ([]byte, error) {
+		conn_success = success
 		data := packets.ReportRelayConnectResultPacket{
 			Success: success,
 		}
 		return proto.Marshal(&data)
 	})
+
+	if conn_success {
+		// Send packet to server, server will relay after interpreting and calculating route latency
+		data := packets.PingPacket{
+			Timestamp: time.Now().UnixNano() + c.timeDrift,
+		}
+		packet_data, err := proto.Marshal(&data)
+		if err != nil {
+			panic(err)
+		}
+		c.udpConn.Write(packet_data)
+	}
 }
 
 type serializer func(success bool) ([]byte, error)
