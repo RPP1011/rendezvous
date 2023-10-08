@@ -1,0 +1,97 @@
+{{- $Root := . -}}
+package packets
+
+import (
+	"google.golang.org/protobuf/proto"
+)
+
+type ReliablePacketHandler interface {
+	HandlePacket(packet *ReliablePacket)
+	{{- range .ReliableMessageNames }}
+	handle{{ .Name }}(packet *{{ .Name }})
+	{{- end }}
+}
+
+type IsReliablePacket[T isReliablePacket_Value] interface
+{
+	GetPacket() T 
+}
+
+type DefaultReliablePacketHandler struct {}
+
+func (p *DefaultReliablePacketHandler) HandleReliablePacket(packet *ReliablePacket) {
+	switch packet.Value.(type) {
+	{{- range .ReliableMessageNames }}
+	case *ReliablePacket_{{ .Name }}:
+		p.handle{{ .Name }}(packet.Get{{ .Name }}())
+	{{- end }}
+	}
+}
+
+{{- range .ReliableMessageNames }}
+
+func (p *DefaultReliablePacketHandler) handle{{ .Name }}(packet *{{ .Name }}) {
+	println("Received {{ .Name }} packet on DefaultReliablePacketHandler")
+}
+
+{{- end }}
+
+{{- range .ReliableMessageNames }}
+
+func (p *{{ .Name }}) GetPacket() []byte {
+
+	packet := &ReliablePacket{
+		Value: &ReliablePacket_{{ .Name }}{ {{ .Name }}: p },
+	}
+	data, err := proto.Marshal(packet)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
+{{- end }}
+
+
+type UnreliablePacketHandler interface {
+	HandlePacket(packet *UnreliablePacket)
+	{{- range .UnreliableMessageNames }}
+	handle{{ .Name }}(packet *{{ .Name }})
+	{{- end }}
+}
+
+type DefaultUnreliablePacketHandler struct {}
+
+func (p *DefaultUnreliablePacketHandler) HandleUnreliablePacket(packet *UnreliablePacket) {
+	switch packet.Value.(type) {
+	{{- range .UnreliableMessageNames }}
+	case *UnreliablePacket_{{ .Name }}:
+		p.handle{{ .Name }}(packet.Get{{ .Name }}())
+	{{- end }}
+	}
+}
+
+{{- range .UnreliableMessageNames }}
+
+func (p *DefaultUnreliablePacketHandler) handle{{ .Name }}(packet *{{ .Name }}) {
+	println("Received {{ .Name }} packet on DefaultUnreliablePacketHandler")
+}
+
+{{- end }}
+
+
+{{- range .UnreliableMessageNames }}
+
+
+func (p *{{ .Name }}) GetPacket() []byte {
+
+	packet := &UnreliablePacket{
+		Value: &UnreliablePacket_{{ .Name }}{ {{ .Name }}: p },
+	}
+	data, err := proto.Marshal(packet)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+{{- end }}

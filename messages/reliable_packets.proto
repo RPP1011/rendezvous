@@ -36,7 +36,7 @@ message RegisterPacket {
 
 // Sent from server to client to indicate that the registration was successful
 message ClientInfoPacket {
-    int32 clientId = 1;
+    uint32 clientId = 1;
 }
 
 // Sent from client to server to request to create a lobby
@@ -56,13 +56,13 @@ message JoinLobbyPacket {
 }
 
 message LobbyPlayerInfo {
-    int32 playerId = 1;
+    uint32 playerId = 1;
     string playerName = 2;
 }
 
 // Send from server to client to indicate that the client joined a lobby successfully
 message LobbyInfoPacket {
-    int32 lobbyId = 1;
+    uint32 lobbyId = 1;
     string lobbyCode = 2;
     string lobbyName = 3;
     LobbyPlayerInfo playerOneInfo = 4;
@@ -73,6 +73,7 @@ message LobbyInfoPacket {
 message UpdateLobbyPacket {
     LobbyPlayerInfo playerOneInfo = 1;
     LobbyPlayerInfo playerTwoInfo = 2;
+    string lobbyName = 3;
 }
 
 // Sent from server to lobby clients to inform them to attempt to connect directly
@@ -97,7 +98,7 @@ message ReportRelayConnectResultPacket {
 
 // Sent from client to server to kick a lobby member
 message KickLobbyMemberPacket {
-    int32 playerId = 1;
+    uint32 playerId = 1;
 }
 
 // Sent from server to client to indicate that the client was kicked from the lobby

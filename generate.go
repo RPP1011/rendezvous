@@ -1,7 +1,7 @@
 //go:build ignore
 // +build ignore
 
-//go:generate go run generate.go -rproto messages/reliable_packets.proto -uproto messages/unreliable_packets.proto -output .\shared\packet_handler.go  -template .\shared\handler.tmpl
+//go:generate go run generate.go -rproto messages/reliable_packets.proto -uproto messages/unreliable_packets.proto -output .\packets\packet_handler.go  -template .\packets\handler.tmpl
 
 package main
 

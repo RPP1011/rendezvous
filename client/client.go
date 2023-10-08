@@ -9,8 +9,8 @@ import (
 )
 
 type Client struct {
-	shared.DefaultReliablePacketHandler
-	shared.DefaultUnreliablePacketHandler
+	packets.DefaultReliablePacketHandler
+	packets.DefaultUnreliablePacketHandler
 	clientInfo                    shared.ClientInfo
 	events                        ClientEventHandler
 	tcpConn                       *net.TCPConn

@@ -1,5 +1,7 @@
 package shared
 
+import "github.com/RPP1011/rendezvous/packets"
+
 type LobbyState uint8
 
 const (
@@ -21,14 +23,17 @@ type LobbyInfo struct {
 	Players []*ClientInfo
 	// Lobby State
 	State LobbyState
+	// Lobby Name
+	Name string
 }
 
-func NewLobbyInfo(id uint32, code string) *LobbyInfo {
+func NewLobbyInfo(id uint32, name string, code string) *LobbyInfo {
 	return &LobbyInfo{
 		ID:      id,
 		Code:    code,
 		Players: make([]*ClientInfo, 2),
 		State:   LobbyStateEmpty,
+		Name:    name,
 	}
 }
 
@@ -37,6 +42,7 @@ func (l *LobbyInfo) AddPlayer(player *ClientInfo) {
 		return
 	}
 
+	player.Lobby = l
 	l.Players = append(l.Players, player)
 	l.State = LobbyStateDuo
 }
@@ -74,4 +80,40 @@ func (l *LobbyInfo) GetOtherPlayer(player *ClientInfo) *ClientInfo {
 	} else {
 		return nil
 	}
+}
+
+/*
+message LobbyPlayerInfo {
+    int32 playerId = 1;
+    string playerName = 2;
+}*/
+func (l *LobbyInfo) GetPlayerOneInfo() *packets.LobbyPlayerInfo {
+	if len(l.Players) == 0 {
+		return nil
+	}
+
+	return &packets.LobbyPlayerInfo{
+		PlayerId:   l.Players[0].ID,
+		PlayerName: l.Players[0].Name,
+	}
+}
+
+func (l *LobbyInfo) GetPlayerTwoInfo() *packets.LobbyPlayerInfo {
+	if len(l.Players) < 2 {
+		return nil
+	}
+
+	return &packets.LobbyPlayerInfo{
+		PlayerId:   l.Players[1].ID,
+		PlayerName: l.Players[1].Name,
+	}
+}
+
+// Get owner
+func (l *LobbyInfo) GetOwner() *ClientInfo {
+	if l.IsEmpty() {
+		return nil
+	}
+
+	return l.Players[0]
 }

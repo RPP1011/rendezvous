@@ -7,11 +7,16 @@ option go_package = "./packets";
 message UnreliablePacket {
     option (is_generic) = true;
     oneof value {
-        PingPacket pingPacket = 1;
-        DataPacket dataPacket = 2;
+        FormConnectionPacket formConnectionPacket = 1;
+        PingPacket pingPacket = 2;
+        DataPacket dataPacket = 3;
     }
 }
- 
+
+message FormConnectionPacket {
+    uint32 clientId = 1;
+}
+
 message PingPacket {
     int64 timestamp = 1;
 }

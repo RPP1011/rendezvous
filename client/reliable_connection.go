@@ -121,7 +121,7 @@ func (c *Client) handleAttemptRelayConnectPacket(packet *packets.AttemptRelayCon
 	conn_success := false
 
 	// Attempt to connect to the relay server
-	c.attemptUDPConnection(packet.RelayAddress, func(success bool) ([]byte, error) {
+	c.attemptUDPConnection(c.tcpConn.RemoteAddr().String(), func(success bool) ([]byte, error) {
 		conn_success = success
 		data := packets.ReportRelayConnectResultPacket{
 			Success: success,
@@ -134,11 +134,8 @@ func (c *Client) handleAttemptRelayConnectPacket(packet *packets.AttemptRelayCon
 		data := packets.PingPacket{
 			Timestamp: time.Now().UnixNano() + c.timeDrift,
 		}
-		packet_data, err := proto.Marshal(&data)
-		if err != nil {
-			panic(err)
-		}
-		c.udpConn.Write(packet_data)
+
+		c.udpConn.Write(data.GetPacket())
 	}
 }
 
