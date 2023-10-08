@@ -15,6 +15,8 @@ type ClientInfo struct {
 	UnreliableConnAddr *net.UDPAddr
 	// Client's TCP connection
 	ReliableConn *net.TCPConn
+	// Client's TCP connection to form udp connection
+	ReliableConnToUDP *net.TCPConn
 }
 
 func NewClientInfo(id uint32, name string) *ClientInfo {

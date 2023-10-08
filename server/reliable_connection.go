@@ -25,6 +25,78 @@ func (s *Server) handle_tcp_connections() {
 	}
 }
 
+func (s *Server) handle_udp_registrations() {
+	for {
+		conn, err := s.tcpForUDPListener.AcceptTCP()
+		if err != nil {
+			panic(err)
+		}
+
+		go s.handleRegistration(conn)
+	}
+}
+
+func (s *Server) handleRegistration(conn *net.TCPConn) {
+	defer conn.Close()
+	// Create a buffer to read into
+	buffer := make([]byte, 1024*4)
+
+	registered_conn := false
+	// Read from the connection
+	for {
+		bytes_read, read_err := conn.Read(buffer)
+
+		if read_err != nil {
+			println("Error reading from TCP for UDP connection")
+		}
+
+		// Parse the packet
+		container_packet := &packets.ReliablePacket{}
+
+		parse_err := proto.Unmarshal(buffer[:bytes_read], container_packet)
+
+		if parse_err != nil {
+			println("Error parsing packet")
+			continue
+		}
+
+		registerPacket := container_packet.GetRegisterConnectionPacket()
+
+		// Handle the packet
+		if registerPacket == nil {
+			// Print info of sender
+			println("Received packet of type", container_packet.String(), "from", conn.RemoteAddr().String())
+			continue
+		}
+
+		if registered_conn {
+			println("Client already registered")
+			continue
+		}
+
+		// Check if server already has a client for this handler
+		if handler, exists := s.handlersById[registerPacket.ClientId]; exists {
+			// Register the UDP connection
+			udpAddr, err := net.ResolveUDPAddr("udp", conn.RemoteAddr().String())
+			if err != nil {
+				panic(err)
+			}
+			udpConn, connErr := net.DialUDP("udp", s.getLocalUDPAddr(), udpAddr)
+			if connErr != nil {
+				panic(connErr)
+			}
+
+			// Add to maps
+			addrPort := netip.MustParseAddrPort(udpConn.RemoteAddr().String())
+			s.clientsByUnreliableAddr[addrPort] = handler
+			handler.UdpConn = udpConn
+			handler.Client.ReliableConnToUDP = conn
+			registered_conn = true
+		}
+
+	}
+}
+
 type ClientSessionHandler struct {
 	packets.DefaultReliablePacketHandler
 	packets.DefaultUnreliablePacketHandler
@@ -149,6 +221,26 @@ func (c *ClientSessionHandler) handleJoinLobbyPacket(packet *packets.JoinLobbyPa
 	}
 
 	c.TcpConn.Write(response.GetPacket())
+
+	// If lobby is full, request direct connect
+	if lobby.IsFull() {
+		// Send direct connect request to all players
+
+		for _, client := range lobby.Players {
+			clientConn := client.ReliableConn
+			peerConn := lobby.GetOtherPlayer(client).ReliableConnToUDP
+			if peerConn == nil {
+				// Other player has not registered UDP connection yet
+				// This is an invalid state, panicking
+				panic("Other player has not registered UDP connection yet")
+			}
+
+			directConnectRequestPacket := packets.AttemptDirectConnectPacket{
+				PeerAddress: peerConn.RemoteAddr().String(),
+			}
+			clientConn.Write(directConnectRequestPacket.GetPacket())
+		}
+	}
 }
 
 func (c *ClientSessionHandler) handleChatMessagePacket(packet *packets.ChatMessagePacket) {
@@ -327,30 +419,6 @@ func (c *ClientSessionHandler) handleKickLobbyMemberPacket(packet *packets.KickL
 	}
 }
 
-func (c *ClientSessionHandler) handleReportRelayConnectResultPacket(packet *packets.ReportRelayConnectResultPacket) {
-	// Check if client is registered
-	if c.Client == nil {
-		println("Client not registered")
-		return
-	}
-
-	// Check if client is in a lobby
-	if c.Client.Lobby == nil {
-		println("Client not in lobby")
-		return
-	}
-
-	if !packet.Success {
-		println("Relay connection failed")
-		return
-	} else {
-		lobby := c.Client.Lobby
-		if lobby.State == shared.LobbyStateDuo {
-			lobby.State = shared.LobbyStateRelay
-		}
-	}
-}
-
 func (c *ClientSessionHandler) handleReportDirectConnectResultPacket(packet *packets.ReportDirectConnectResultPacket) {
 	// Check if client is registered
 	if c.Client == nil {
@@ -378,7 +446,7 @@ func (c *ClientSessionHandler) handleReportDirectConnectResultPacket(packet *pac
 
 	// Send relay connect request to all players
 	relayConnectRequestPacket := packets.AttemptRelayConnectPacket{
-		RelayAddress: c.Server.udpListener.LocalAddr().String(),
+		RelayAddress: c.Server.udpListener.LocalAddr().String(), // This is pointless
 	}
 
 	for _, client := range lobby.Players {
@@ -386,7 +454,7 @@ func (c *ClientSessionHandler) handleReportDirectConnectResultPacket(packet *pac
 			continue
 		}
 
-		clientConn := client.ReliableConn
+		clientConn := client.ReliableConnToUDP
 		clientConn.Write(relayConnectRequestPacket.GetPacket())
 	}
 }

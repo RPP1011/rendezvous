@@ -20,22 +20,33 @@ type Server struct {
 	lobbyCodes map[string]uint32
 	// Tcp listener
 	tcpListener *net.TCPListener
+
+	// Tcp for UDPlistener
+	tcpForUDPListener *net.TCPListener
 	// Udp listener
 	udpListener *net.UDPConn
 }
 
 func NewServer() *Server {
 	tcpAddr, tcp_addr_err := net.ResolveTCPAddr("tcp", ":8080")
+	udpAddr, udp_addr_err := net.ResolveUDPAddr("udp", ":8081")
+	tcpForUDPAddr, tucp_addr_err := net.ResolveTCPAddr("tcp", ":8081")
+
 	if tcp_addr_err != nil {
 		panic(tcp_addr_err)
 	}
-	tcpListener, tcp_err := net.ListenTCP("tcp", tcpAddr)
 
-	udpAddr, udp_addr_err := net.ResolveUDPAddr("udp", ":8081")
 	if udp_addr_err != nil {
 		panic(udp_addr_err)
 	}
+
+	if tucp_addr_err != nil {
+		panic(tucp_addr_err)
+	}
+
+	tcpListener, tcp_err := net.ListenTCP("tcp", tcpAddr)
 	udpListener, udp_err := net.ListenUDP("udp", udpAddr)
+	tcpForUDPListener, tcp_err := net.ListenTCP("tcp", tcpForUDPAddr)
 
 	if tcp_err != nil {
 		panic(tcp_err)
@@ -43,6 +54,10 @@ func NewServer() *Server {
 
 	if udp_err != nil {
 		panic(udp_err)
+	}
+
+	if tcp_err != nil {
+		panic(tcp_err)
 	}
 
 	server := &Server{
@@ -54,10 +69,11 @@ func NewServer() *Server {
 		clientsByUnreliableAddr: make(map[netip.AddrPort]*ClientSessionHandler),
 		tcpListener:             tcpListener,
 		udpListener:             udpListener,
+		tcpForUDPListener:       tcpForUDPListener,
 	}
 
 	go server.handle_tcp_connections()
-
+	go server.handle_udp_registrations()
 	return server
 }
 
@@ -77,4 +93,8 @@ func (s *Server) generate_lobby_code() string {
 	}
 
 	return string(buffer)
+}
+
+func (s *Server) getLocalUDPAddr() *net.UDPAddr {
+	return s.udpListener.LocalAddr().(*net.UDPAddr)
 }

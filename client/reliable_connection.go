@@ -47,6 +47,8 @@ func (c *Client) handle_tcp_connection(cancel <-chan struct{}) {
 // Handle ClientInfoPacket
 func (c *Client) handleClientInfoPacket(packet *packets.ClientInfoPacket) {
 	c.clientInfo.ID = uint32(packet.ClientId)
+
+	go c.formTCPUDPConn(c.tcpConn.RemoteAddr().String(), c.serverRelayAddress)
 }
 
 // Handle CreateLobbyResponsePacket
@@ -67,7 +69,7 @@ func (c *Client) handleCreateLobbyResponsePacket(packet *packets.CreateLobbyResp
 
 // Handle LobbyInfoPacket
 func (c *Client) handleLobbyInfoPacket(packet *packets.LobbyInfoPacket) {
-	lobby := shared.NewLobbyInfo(uint32(packet.LobbyId), packet.LobbyCode)
+	lobby := shared.NewLobbyInfo(uint32(packet.LobbyId), packet.LobbyName, packet.LobbyCode)
 	lobby.AddPlayer(&c.clientInfo)
 	c.clientInfo.Lobby = lobby
 
@@ -95,75 +97,66 @@ func (c *Client) handleUpdateLobbyPacket(packet *packets.UpdateLobbyPacket) {
 }
 
 func (c *Client) handleAttemptDirectConnectPacket(packet *packets.AttemptDirectConnectPacket) {
-	conn_success := false
-	c.attemptUDPConnection(packet.PeerAddress, func(success bool) ([]byte, error) {
-		conn_success = success
-		data := packets.ReportDirectConnectResultPacket{
-			Success: success,
-		}
-		return proto.Marshal(&data)
-	})
-
-	if conn_success {
-		// Send packet to other client
-		data := packets.PingPacket{
-			Timestamp: time.Now().UnixNano() + c.timeDrift,
-		}
-		packet_data, err := proto.Marshal(&data)
-		if err != nil {
-			panic(err)
-		}
-		c.udpConn.Write(packet_data)
+	// Attempt to connect to other client
+	otherClientAddr := packet.PeerAddress
+	// Use TCP to UDP connection to connect to other client
+	tcpAddr, err := net.ResolveTCPAddr("tcp", otherClientAddr)
+	if err != nil {
+		panic(err)
 	}
+
+	udpAddr, err := net.ResolveUDPAddr("udp", otherClientAddr)
+	if err != nil {
+		panic(err)
+	}
+
+	localAddr := c.tcpConnForUDP.LocalAddr().(*net.TCPAddr)
+
+	c.tcpConnForUDP, err = net.DialTCP("tcp", localAddr, tcpAddr)
+	if err != nil {
+		panic(err)
+	}
+
+	// set udp connection
+	// Convert the TCP connection to a UDP connection
+	localUdpAddr, err := net.ResolveUDPAddr("udp", c.tcpConnForUDP.LocalAddr().(*net.TCPAddr).String())
+	c.udpConn, err = net.DialUDP("udp", localUdpAddr, udpAddr)
+
+	// Send packet to other client
+	data := packets.PingPacket{
+		Timestamp: time.Now().UnixNano() + c.timeDrift,
+	}
+	packet_data, err := proto.Marshal(&data)
+	if err != nil {
+		panic(err)
+	}
+	c.udpConn.Write(packet_data)
+
 }
 
 func (c *Client) handleAttemptRelayConnectPacket(packet *packets.AttemptRelayConnectPacket) {
-	conn_success := false
-
-	// Attempt to connect to the relay server
-	c.attemptUDPConnection(c.tcpConn.RemoteAddr().String(), func(success bool) ([]byte, error) {
-		conn_success = success
-		data := packets.ReportRelayConnectResultPacket{
-			Success: success,
-		}
-		return proto.Marshal(&data)
-	})
-
-	if conn_success {
-		// Send packet to server, server will relay after interpreting and calculating route latency
-		data := packets.PingPacket{
-			Timestamp: time.Now().UnixNano() + c.timeDrift,
-		}
-
-		c.udpConn.Write(data.GetPacket())
-	}
-}
-
-type serializer func(success bool) ([]byte, error)
-
-func (c *Client) attemptUDPConnection(remote_addr_str string, serialize serializer) {
-	remote_addr, addr_err := net.ResolveUDPAddr("udp", remote_addr_str)
-	if addr_err != nil {
-		println("Error resolving other client's address")
-		return
-	} // Create a new UDP connection
-	udpConn, err := net.DialUDP("udp", nil, remote_addr)
+	// Convert the TCP connection to a UDP connection
+	localUdpAddr, err := net.ResolveUDPAddr("udp", c.tcpConnForUDP.LocalAddr().(*net.TCPAddr).String())
+	remoteUdpAddr, err := net.ResolveUDPAddr("udp", c.serverRelayAddress)
+	udpConn, err := net.DialUDP("udp", localUdpAddr, remoteUdpAddr)
 
 	if err != nil {
-		println("Error connecting to other client directly")
+		println("Error connecting to other client through relay")
 		return
 	}
-
 	c.udpConn = udpConn
-
-	// Send a ReportDirectConnectResultPacket to the server
-	data, err := serialize(true)
 
 	if err != nil {
 		panic(err)
 	}
 
-	c.tcpConn.Write(data)
+	// Send packet to server, server will relay after interpreting and calculating route latency
+	data := packets.PingPacket{
+		Timestamp: time.Now().UnixNano() + c.timeDrift,
+	}
+
+	c.udpConn.Write(data.GetPacket())
+
 }
 
 func (c *Client) handleKickClientPacket(packet *packets.KickClientPacket) {

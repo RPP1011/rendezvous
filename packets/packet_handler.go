@@ -17,13 +17,13 @@ type ReliablePacketHandler interface {
 	handleAttemptDirectConnectPacket(packet *AttemptDirectConnectPacket)
 	handleReportDirectConnectResultPacket(packet *ReportDirectConnectResultPacket)
 	handleAttemptRelayConnectPacket(packet *AttemptRelayConnectPacket)
-	handleReportRelayConnectResultPacket(packet *ReportRelayConnectResultPacket)
 	handleKickLobbyMemberPacket(packet *KickLobbyMemberPacket)
 	handleKickClientPacket(packet *KickClientPacket)
 	handleChangeNamePacket(packet *ChangeNamePacket)
 	handleChangeLobbyNamePacket(packet *ChangeLobbyNamePacket)
 	handleChatMessagePacket(packet *ChatMessagePacket)
 	handleLeaveLobbyPacket(packet *LeaveLobbyPacket)
+	handleRegisterConnectionPacket(packet *RegisterConnectionPacket)
 }
 
 type IsReliablePacket[T isReliablePacket_Value] interface
@@ -57,8 +57,6 @@ func (p *DefaultReliablePacketHandler) HandleReliablePacket(packet *ReliablePack
 		p.handleReportDirectConnectResultPacket(packet.GetReportDirectConnectResultPacket())
 	case *ReliablePacket_AttemptRelayConnectPacket:
 		p.handleAttemptRelayConnectPacket(packet.GetAttemptRelayConnectPacket())
-	case *ReliablePacket_ReportRelayConnectResultPacket:
-		p.handleReportRelayConnectResultPacket(packet.GetReportRelayConnectResultPacket())
 	case *ReliablePacket_KickLobbyMemberPacket:
 		p.handleKickLobbyMemberPacket(packet.GetKickLobbyMemberPacket())
 	case *ReliablePacket_KickClientPacket:
@@ -71,6 +69,8 @@ func (p *DefaultReliablePacketHandler) HandleReliablePacket(packet *ReliablePack
 		p.handleChatMessagePacket(packet.GetChatMessagePacket())
 	case *ReliablePacket_LeaveLobbyPacket:
 		p.handleLeaveLobbyPacket(packet.GetLeaveLobbyPacket())
+	case *ReliablePacket_RegisterConnectionPacket:
+		p.handleRegisterConnectionPacket(packet.GetRegisterConnectionPacket())
 	}
 }
 
@@ -118,10 +118,6 @@ func (p *DefaultReliablePacketHandler) handleAttemptRelayConnectPacket(packet *A
 	println("Received AttemptRelayConnectPacket packet on DefaultReliablePacketHandler")
 }
 
-func (p *DefaultReliablePacketHandler) handleReportRelayConnectResultPacket(packet *ReportRelayConnectResultPacket) {
-	println("Received ReportRelayConnectResultPacket packet on DefaultReliablePacketHandler")
-}
-
 func (p *DefaultReliablePacketHandler) handleKickLobbyMemberPacket(packet *KickLobbyMemberPacket) {
 	println("Received KickLobbyMemberPacket packet on DefaultReliablePacketHandler")
 }
@@ -144,6 +140,10 @@ func (p *DefaultReliablePacketHandler) handleChatMessagePacket(packet *ChatMessa
 
 func (p *DefaultReliablePacketHandler) handleLeaveLobbyPacket(packet *LeaveLobbyPacket) {
 	println("Received LeaveLobbyPacket packet on DefaultReliablePacketHandler")
+}
+
+func (p *DefaultReliablePacketHandler) handleRegisterConnectionPacket(packet *RegisterConnectionPacket) {
+	println("Received RegisterConnectionPacket packet on DefaultReliablePacketHandler")
 }
 
 func (p *RegisterPacket) GetPacket() []byte {
@@ -278,18 +278,6 @@ func (p *AttemptRelayConnectPacket) GetPacket() []byte {
 	return data
 }
 
-func (p *ReportRelayConnectResultPacket) GetPacket() []byte {
-
-	packet := &ReliablePacket{
-		Value: &ReliablePacket_ReportRelayConnectResultPacket{ ReportRelayConnectResultPacket: p },
-	}
-	data, err := proto.Marshal(packet)
-	if err != nil {
-		panic(err)
-	}
-	return data
-}
-
 func (p *KickLobbyMemberPacket) GetPacket() []byte {
 
 	packet := &ReliablePacket{
@@ -354,6 +342,18 @@ func (p *LeaveLobbyPacket) GetPacket() []byte {
 
 	packet := &ReliablePacket{
 		Value: &ReliablePacket_LeaveLobbyPacket{ LeaveLobbyPacket: p },
+	}
+	data, err := proto.Marshal(packet)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
+func (p *RegisterConnectionPacket) GetPacket() []byte {
+
+	packet := &ReliablePacket{
+		Value: &ReliablePacket_RegisterConnectionPacket{ RegisterConnectionPacket: p },
 	}
 	data, err := proto.Marshal(packet)
 	if err != nil {

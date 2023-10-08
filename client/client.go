@@ -14,7 +14,9 @@ type Client struct {
 	clientInfo                    shared.ClientInfo
 	events                        ClientEventHandler
 	tcpConn                       *net.TCPConn
+	tcpConnForUDP                 *net.TCPConn
 	udpConn                       *net.UDPConn
+	serverRelayAddress            string
 	timeDrift                     int64
 	serverConnectionCancelChannel chan struct{}
 	lobbyConnectionCancelChannel  chan struct{}
@@ -29,7 +31,10 @@ func NewClient() *Client {
 		},
 		events:                        ClientEventHandler{},
 		tcpConn:                       nil,
+		tcpConnForUDP:                 nil,
 		udpConn:                       nil,
+		serverRelayAddress:            "",
+		timeDrift:                     0,
 		serverConnectionCancelChannel: make(chan struct{}),
 		lobbyConnectionCancelChannel:  make(chan struct{}),
 	}
@@ -53,11 +58,13 @@ func (c *Client) SetName(name string) {
 	}
 }
 
-func (c *Client) Connect(addr string) error {
+func (c *Client) Connect(addr string, relayAddr string) error {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		return err
 	}
+	c.serverRelayAddress = relayAddr
+
 	c.tcpConn, err = net.DialTCP("tcp", nil, tcpAddr)
 
 	go c.handle_tcp_connection(c.serverConnectionCancelChannel)
@@ -66,6 +73,38 @@ func (c *Client) Connect(addr string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (c *Client) Register() {
+	packet := &packets.RegisterPacket{
+		Username: c.clientInfo.Name,
+	}
+	c.tcpConn.Write(packet.GetPacket())
+}
+
+// Call after registering with server
+func (c *Client) formTCPUDPConn(serverAddr string, addr string) error {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return err
+	}
+	c.tcpConnForUDP, err = net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		return err
+	}
+
+	go c.handle_tcp_connection(c.serverConnectionCancelChannel)
+
+	// Send UDP port to server
+	packet := &packets.RegisterConnectionPacket{
+		ClientId: c.clientInfo.ID,
+	}
+	c.tcpConnForUDP.Write(packet.GetPacket())
+	if err != nil {
+
+		return err
+	}
 	return nil
 }
 

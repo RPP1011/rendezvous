@@ -2,6 +2,7 @@
 
 rem Clear build directory
 rmdir /s /q build
+del /F "packets\packet_handler.go"
 
 rem Populate container types
 go run packet_merger.go -proto messages/reliable_packets.proto -containerName ReliablePacket

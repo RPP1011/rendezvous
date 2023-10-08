@@ -19,13 +19,13 @@ message ReliablePacket {
         AttemptDirectConnectPacket attemptDirectConnectPacket = 9;
         ReportDirectConnectResultPacket reportDirectConnectResultPacket = 10;
         AttemptRelayConnectPacket attemptRelayConnectPacket = 11;
-        ReportRelayConnectResultPacket reportRelayConnectResultPacket = 12;
-        KickLobbyMemberPacket kickLobbyMemberPacket = 13;
-        KickClientPacket kickClientPacket = 14;
-        ChangeNamePacket changeNamePacket = 15;
-        ChangeLobbyNamePacket changeLobbyNamePacket = 16;
-        ChatMessagePacket chatMessagePacket = 17;
-        LeaveLobbyPacket leaveLobbyPacket = 18;
+        KickLobbyMemberPacket kickLobbyMemberPacket = 12;
+        KickClientPacket kickClientPacket = 13;
+        ChangeNamePacket changeNamePacket = 14;
+        ChangeLobbyNamePacket changeLobbyNamePacket = 15;
+        ChatMessagePacket chatMessagePacket = 16;
+        LeaveLobbyPacket leaveLobbyPacket = 17;
+        RegisterConnectionPacket registerConnectionPacket = 18;
     }
 }
 
@@ -91,11 +91,6 @@ message AttemptRelayConnectPacket {
     string relayAddress = 1;
 }
 
-// Sent from client to server to indicate that the client connected to the peer via the relay server
-message ReportRelayConnectResultPacket {
-    bool success = 1;
-}
-
 // Sent from client to server to kick a lobby member
 message KickLobbyMemberPacket {
     uint32 playerId = 1;
@@ -123,4 +118,8 @@ message ChatMessagePacket {
 
 // Sent from client to server to leave the lobby
 message LeaveLobbyPacket {
+}
+
+message RegisterConnectionPacket {
+    uint32 clientId = 1;
 }
